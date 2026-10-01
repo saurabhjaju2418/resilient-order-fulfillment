@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: fulfillment
+      POSTGRES_USER: fulfillment
+      POSTGRES_PASSWORD: fulfillment
+    ports: ["5432:5432"]
+    volumes: ["fulfillment-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fulfillment"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  api:
+    build: .
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/fulfillment
+      DATABASE_USER: fulfillment
+      DATABASE_PASSWORD: fulfillment
+    ports: ["8080:8080"]
+    depends_on:
+      postgres: {condition: service_healthy}
+volumes:
+  fulfillment-data:
+
