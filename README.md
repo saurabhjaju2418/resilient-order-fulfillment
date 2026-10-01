@@ -1,44 +1,55 @@
 <div align="center">
 
-<img src="assets/project-banner.svg" alt="Animated Relay — Resilient Order Fulfillment banner" width="900" />
+<img src="assets/project-banner.svg" alt="Animated resilient order fulfillment flow" width="900" />
 
-# Relay — Resilient Order Fulfillment
+# Resilient Order Fulfillment
 
-**A distributed order flow built for the unhappy path.**
+**Make order transitions explicit, retryable, and auditable.**
 
-Java · Spring Boot · Kafka · PostgreSQL
-
-![Project status](https://img.shields.io/badge/status-in%20progress-7a8b71)
+Java 21 · Spring Boot · PostgreSQL · Flyway · Docker
 
 </div>
 
-## Product scope
+A small order lifecycle API demonstrating guarded workflow transitions, idempotent order creation, optimistic concurrency metadata, and transactional outbox records.
 
-Coordinate inventory, payment, and shipping while preserving a truthful order state through partial failure.
+## Implemented
 
-## Architecture notes
+- POST /api/orders creates an order and lines. Require an Idempotency-Key; replaying an identical request returns the original order, while reusing that key for another payload conflicts.
+- GET /api/orders/{id} returns the order and its lines.
+- POST /api/orders/{id}/transitions validates the lifecycle graph and records a corresponding outbox event in the same database transaction.
+- PostgreSQL/Flyway schema, input validation, health/metrics endpoints, Docker Compose.
 
-Transactional outbox; idempotent consumers; bounded retry and dead-letter handling; saga compensation; order-history audit.
+Allowed flow:
 
-### Data model sketch
+```text
+RECEIVED -> RESERVED -> PICKING -> SHIPPED -> DELIVERED
+    |           |          |
+    +-----------+----------+----> CANCELLED
+```
 
-    orders(id, status, idempotency_key) · outbox_events(id, aggregate_id, payload, published_at) · saga_steps(order_id, step, state, attempt)
+## Run
 
-## Stack
+```bash
+docker compose up --build
+```
 
-Java · Spring Boot · Kafka · PostgreSQL
+Example:
 
-## Build sequence
+```bash
+curl -X POST http://localhost:8080/api/orders \
+  -H 'Content-Type: application/json' -H 'Idempotency-Key: demo-order-001' \
+  -d '{"externalRef":"WEB-1001","customerRef":"customer-demo","lines":[{"sku":"SKU-RED-01","quantity":2}]}'
+```
 
-1. Order API and idempotency
-2. Outbox and asynchronous events
-3. Failure injection and compensation
-4. Recovery runbooks and observability
+## Reliability choices
 
-## Current status
+The idempotency key, request hash, order, line items, and initial outbox record commit in one transaction. Status changes are checked against an explicit state graph and `@Version` tracks concurrent writes. Outbox events are durable records that a future publisher can deliver at least once; this starter does not yet include a dispatcher, broker, inventory reservation adapter, or dead-letter handling.
 
-Public repository with an animated README. Product code is being built incrementally, one project at a time. This page records the planned product boundary and engineering milestones.
+## Boundaries
+
+This portfolio slice is a single service with demo-level customer references. It does not implement authentication, tenant isolation, payment, inventory accounting, shipping providers, webhook signing, retries, or reconciliation. Add those adapters behind the order workflow before treating it as production software.
 
 ## License
 
-MIT.
+MIT. See LICENSE.
+
