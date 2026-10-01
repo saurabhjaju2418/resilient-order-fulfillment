@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: fulfillment-api
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/fulfillment}
+    username: ${DATABASE_USER:fulfillment}
+    password: ${DATABASE_PASSWORD:fulfillment}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+server:
+  port: ${PORT:8080}
+
